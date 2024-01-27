@@ -9,19 +9,15 @@ import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'auth_gate.dart';
+
 const allThreads = false;
 const Hipotekarna = 'Hipotekarna';
 final FToast fToast = FToast();
 
-const waste_of_funds = r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
-const waste_of_funds_with_commission = r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nNaknada: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
-const one_time_password = r"^(\d{6}) je jednokratna lozinka za transakciju u iznosu (\w{3}) ([\d.]+), izvrsenu kod (.+)$";
-const hb_commission = r"^Odliv Naplata naknada sa Vaseg racuna broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-const account_credit = r"^Odliv sa Vaseg racuna broj (\d+) na racun (.+) broj (\d*|\s*) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-const account_debit  = r"^Priliv sa racuna (.+) broj (\d+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-const account_debit_extra  = r"^Priliv od (.+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseTools.init();
   runApp(const MyApp());
 }
 
@@ -65,6 +61,21 @@ class SmsTools {
   Future<List<SmsMessage>> get hipotekarnaAll {
     return query.querySms(address: Hipotekarna);
   }
+
+  static const waste_of_funds =
+      r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
+  static const waste_of_funds_with_commission =
+      r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nNaknada: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
+  static const one_time_password =
+      r"^(\d{6}) je jednokratna lozinka za transakciju u iznosu (\w{3}) ([\d.]+), izvrsenu kod (.+)$";
+  static const hb_commission =
+      r"^Odliv Naplata naknada sa Vaseg racuna broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
+  static const account_credit =
+      r"^Odliv sa Vaseg racuna broj (\d+) na racun (.+) broj (\d*|\s*) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
+  static const account_debit =
+      r"^Priliv sa racuna (.+) broj (\d+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
+  static const account_debit_extra =
+      r"^Priliv od (.+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
 }
 
 extension on SmsMessage {
@@ -162,7 +173,11 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (ctx, i) => _messageWidget(messages![i]))
           : const Text("Loading..."),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => saveToFile(messages ?? []),
+        // onPressed: () => saveToFile(messages ?? []),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthGate()),
+        ),
         tooltip: 'Increment',
         child: (messages?.length ?? -1) > 0
             ? Text('${messages!.length}')
@@ -197,7 +212,7 @@ saveToFile(List<SmsMessage> messages) async {
   print(filePath);
   fToast.showToast(
     child: Text("$filePath"),
-    toastDuration: Duration(seconds: 5),
+    toastDuration: const Duration(seconds: 5),
   );
   //
   // // await _checkPermission();

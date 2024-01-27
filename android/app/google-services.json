@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "218894820427",
+    "project_id": "hipagora",
+    "storage_bucket": "hipagora.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:218894820427:android:d974aac9448ee9968359ce",
+        "android_client_info": {
+          "package_name": "net.shevtsov.dev.smstosheet.sms_to_sheet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "218894820427-ufhqm517985c3aa4rm51iuaf5c1qiqvi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3_BvtieEaLGd3IkkDj-gx6-1U8viCPFk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "218894820427-ufhqm517985c3aa4rm51iuaf5c1qiqvi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
