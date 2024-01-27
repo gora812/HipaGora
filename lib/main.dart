@@ -1,125 +1,213 @@
+import 'dart:convert';
+import 'dart:developer' as dev;
+import 'dart:typed_data';
+
+import "package:collection/collection.dart";
 import 'package:flutter/material.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+const allThreads = false;
+const Hipotekarna = 'Hipotekarna';
+final FToast fToast = FToast();
+
+const waste_of_funds = r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
+const waste_of_funds_with_commission = r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nNaknada: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
+const one_time_password = r"^(\d{6}) je jednokratna lozinka za transakciju u iznosu (\w{3}) ([\d.]+), izvrsenu kod (.+)$";
+const hb_commission = r"^Odliv Naplata naknada sa Vaseg racuna broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
+const account_credit = r"^Odliv sa Vaseg racuna broj (\d+) na racun (.+) broj (\d*|\s*) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
+const account_debit  = r"^Priliv sa racuna (.+) broj (\d+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
+const account_debit_extra  = r"^Priliv od (.+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
 
 void main() {
   runApp(const MyApp());
 }
 
+class SmsTools {
+  static SmsTools? instance;
+
+  final SmsQuery query = SmsQuery();
+
+  factory SmsTools() {
+    instance ??= SmsTools._private();
+    return instance!;
+  }
+
+  SmsTools._private() {
+    var granted = false;
+    Permission.sms
+        .request()
+        .then((status) => granted = status.isGranted)
+        .whenComplete(() {
+      if (granted) {
+        dev.log('Permission was granted', name: 'Permission.sms');
+      } else {
+        dev.log('Permission was not granted',
+            name: 'Permission.sms',
+            level: 1000,
+            error: 'Permission was not granted');
+      }
+    });
+  }
+
+  Future<List<SmsMessage>> get getAllThreads {
+    return query.querySms(kinds: [
+      SmsQueryKind.inbox,
+    ]).then((messages) => messages
+        .groupListsBy((m) => m.threadId ?? -1)
+        .values
+        .map((messages) => maxBy(messages, (m) => m.time)!)
+        .toList(growable: false));
+  }
+
+  Future<List<SmsMessage>> get hipotekarnaAll {
+    return query.querySms(address: Hipotekarna);
+  }
+}
+
+extension on SmsMessage {
+  int get time => (dateSent?.millisecondsSinceEpoch ?? 0) > 1E11 // 2001
+      ? dateSent!.millisecondsSinceEpoch
+      : date?.millisecondsSinceEpoch ?? 0;
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   fToast = FToast();
+  //   // if you want to use context from globally instead of content we need to pass navigatorKey.currentContext!
+  //   fToast.init(context);
+  // }
+
   @override
   Widget build(BuildContext context) {
+    fToast.init(context);
     return MaterialApp(
-      title: 'SMS to Google Sheets',
+      title: 'Hipotekarna SMS tool',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'SMS to Google Sheets'),
+      home: const HomePage(title: 'SMS Addresses'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+class HomePage extends StatefulWidget {
+  const HomePage({super.key, required this.title});
 
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomePageState extends State<HomePage> {
+  List<SmsMessage>? messages;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  _HomePageState() {
+    _init();
+  }
+
+  Future<void> _init() async {
+    _smsPermissionWidget();
+
+    messages = allThreads
+        ? await SmsTools().getAllThreads
+        : await SmsTools().hipotekarnaAll;
+    setState(() {});
+  }
+
+  _smsPermissionWidget() {
+    var granted = false;
+    Permission.sms
+        .request()
+        .then((status) => granted = status.isGranted)
+        .whenComplete(() {
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.sms_failed,
+                      color: Colors.red,
+                    )),
+                Text('SMS permission denied!'),
+              ])),
+        );
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
+      body: messages != null
+          ? ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: messages!.length,
+              itemBuilder: (ctx, i) => _messageWidget(messages![i]))
+          : const Text("Loading..."),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: () => saveToFile(messages ?? []),
         tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        child: (messages?.length ?? -1) > 0
+            ? Text('${messages!.length}')
+            : const Icon(Icons.add),
+      ),
     );
   }
+
+  ListTile _messageWidget(SmsMessage msg) {
+    return ListTile(
+      title: Text('[${msg.id}] ${msg.address}'),
+      subtitle: Text('''
+${msg.body}
+dateSent:${msg.dateSent}
+date:${msg.date}
+read:${msg.read}
+kind:${msg.kind}
+id:${msg.id}
+'''),
+    );
+  }
+}
+
+saveToFile(List<SmsMessage> messages) async {
+  final params = SaveFileDialogParams(
+    fileName: "${Hipotekarna}_${DateTime.now().millisecondsSinceEpoch}.json",
+    localOnly: true,
+    data: Uint8List.fromList(
+        utf8.encode(jsonEncode(messages.map((m) => m.toMap).toList()))),
+  );
+  final filePath = await FlutterFileDialog.saveFile(params: params);
+  print(filePath);
+  fToast.showToast(
+    child: Text("$filePath"),
+    toastDuration: Duration(seconds: 5),
+  );
+  //
+  // // await _checkPermission();
+  // String _localPath = (await ExtStorage.getExternalStoragePublicDirectory(
+  //     ExtStorage.DIRECTORY_DOWNLOADS))!;
+  // String filePath =
+  // _localPath + "/" + fileName.trim() + "_" + Uuid().v4() + extension;
+  //
+  // File fileDef = File(filePath);
+  // await fileDef.create(recursive: true);
+  // Uint8List bytes = await file.readAsBytes();
+  // await fileDef.writeAsBytes(bytes);
 }
