@@ -1,99 +1,23 @@
-import 'dart:convert';
-import 'dart:developer' as dev;
-import 'dart:typed_data';
+import 'dart:io';
 
-import "package:collection/collection.dart";
 import 'package:flutter/material.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-import 'auth_gate.dart';
+import 'package:permission_handler/permission_handler.dart' as permission;
+import 'package:sms_to_sheet/providers/google_auth.dart';
+import 'package:sms_to_sheet/providers/sms_provider.dart';
+import 'package:sms_to_sheet/providers/spreadsheet.dart';
 
 const allThreads = false;
-const Hipotekarna = 'Hipotekarna';
 final FToast fToast = FToast();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FirebaseTools.init();
   runApp(const MyApp());
-}
-
-class SmsTools {
-  static SmsTools? instance;
-
-  final SmsQuery query = SmsQuery();
-
-  factory SmsTools() {
-    instance ??= SmsTools._private();
-    return instance!;
-  }
-
-  SmsTools._private() {
-    var granted = false;
-    Permission.sms
-        .request()
-        .then((status) => granted = status.isGranted)
-        .whenComplete(() {
-      if (granted) {
-        dev.log('Permission was granted', name: 'Permission.sms');
-      } else {
-        dev.log('Permission was not granted',
-            name: 'Permission.sms',
-            level: 1000,
-            error: 'Permission was not granted');
-      }
-    });
-  }
-
-  Future<List<SmsMessage>> get getAllThreads {
-    return query.querySms(kinds: [
-      SmsQueryKind.inbox,
-    ]).then((messages) => messages
-        .groupListsBy((m) => m.threadId ?? -1)
-        .values
-        .map((messages) => maxBy(messages, (m) => m.time)!)
-        .toList(growable: false));
-  }
-
-  Future<List<SmsMessage>> get hipotekarnaAll {
-    return query.querySms(address: Hipotekarna);
-  }
-
-  static const waste_of_funds =
-      r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
-  static const waste_of_funds_with_commission =
-      r"^Kartica: (\d+)\nIznos: (-?[\d.,]+) (\w{3})\nNaknada: (-?[\d.,]+) (\w{3})\nVrijeme: ([\d:. ]+)\nStatus: (.+)\nOpis: (.+)\nRaspolozivo: ([\d.,]+) (\w{3})$";
-  static const one_time_password =
-      r"^(\d{6}) je jednokratna lozinka za transakciju u iznosu (\w{3}) ([\d.]+), izvrsenu kod (.+)$";
-  static const hb_commission =
-      r"^Odliv Naplata naknada sa Vaseg racuna broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-  static const account_credit =
-      r"^Odliv sa Vaseg racuna broj (\d+) na racun (.+) broj (\d*|\s*) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-  static const account_debit =
-      r"^Priliv sa racuna (.+) broj (\d+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-  static const account_debit_extra =
-      r"^Priliv od (.+) na Vas racun broj (\d+) u iznosu od ([\d.,]+) (\w{3})\. Raspolozivo: ([\d.,]+) (\w{3})\.$";
-}
-
-extension on SmsMessage {
-  int get time => (dateSent?.millisecondsSinceEpoch ?? 0) > 1E11 // 2001
-      ? dateSent!.millisecondsSinceEpoch
-      : date?.millisecondsSinceEpoch ?? 0;
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   fToast = FToast();
-  //   // if you want to use context from globally instead of content we need to pass navigatorKey.currentContext!
-  //   fToast.init(context);
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -129,14 +53,14 @@ class _HomePageState extends State<HomePage> {
     _smsPermissionWidget();
 
     messages = allThreads
-        ? await SmsTools().getAllThreads
-        : await SmsTools().hipotekarnaAll;
+        ? await SmsService().getAllThreads
+        : await SmsService().hipotekarnaAll;
     setState(() {});
   }
 
   _smsPermissionWidget() {
     var granted = false;
-    Permission.sms
+    permission.Permission.sms
         .request()
         .then((status) => granted = status.isGranted)
         .whenComplete(() {
@@ -165,6 +89,15 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              SpreadsheetProvider().clean();
+              return await GoogleAuthProvider.logout();
+            },
+            icon: const Icon(Icons.login),
+          ),
+        ],
       ),
       body: messages != null
           ? ListView.builder(
@@ -173,11 +106,8 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (ctx, i) => _messageWidget(messages![i]))
           : const Text("Loading..."),
       floatingActionButton: FloatingActionButton(
-        // onPressed: () => saveToFile(messages ?? []),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AuthGate()),
-        ),
+        onPressed: () async => parse_sms(),
+        // onPressed: () async => await GoogleAuthProvider.sheetsApi,
         tooltip: 'Increment',
         child: (messages?.length ?? -1) > 0
             ? Text('${messages!.length}')
@@ -201,28 +131,34 @@ id:${msg.id}
   }
 }
 
-saveToFile(List<SmsMessage> messages) async {
-  final params = SaveFileDialogParams(
-    fileName: "${Hipotekarna}_${DateTime.now().millisecondsSinceEpoch}.json",
-    localOnly: true,
-    data: Uint8List.fromList(
-        utf8.encode(jsonEncode(messages.map((m) => m.toMap).toList()))),
-  );
-  final filePath = await FlutterFileDialog.saveFile(params: params);
-  print(filePath);
-  fToast.showToast(
-    child: Text("$filePath"),
-    toastDuration: const Duration(seconds: 5),
-  );
-  //
-  // // await _checkPermission();
-  // String _localPath = (await ExtStorage.getExternalStoragePublicDirectory(
-  //     ExtStorage.DIRECTORY_DOWNLOADS))!;
-  // String filePath =
-  // _localPath + "/" + fileName.trim() + "_" + Uuid().v4() + extension;
-  //
-  // File fileDef = File(filePath);
-  // await fileDef.create(recursive: true);
-  // Uint8List bytes = await file.readAsBytes();
-  // await fileDef.writeAsBytes(bytes);
+parse_sms() async {
+  var provider = SpreadsheetProvider();
+
+  var start = DateTime.now();
+  var counter = 0;
+  print('Started $start ...');
+
+  var ss = await provider.getSpreadsheet();
+  var lastId = SpreadsheetProvider.lastId(ss) ?? 0;
+
+  var messages = await SmsService().hipotekarnaAll;
+
+  var models = messages
+      .where((m) => (m.id ?? 0) > lastId)
+      .map((m) => SmsModel(m))
+      .where((m) => m.forPublish)
+      .toList(growable: false)
+      .reversed;
+
+  const pageSize = 300;
+  while (models.isNotEmpty) {
+    var rows = models.take(pageSize);
+    await provider.addRows(rows);
+    sleep(const Duration(seconds: 1));
+    models = models.skip(pageSize);
+    print('Added ${counter += rows.length} rows');
+  }
+  print('Finished ${DateTime.now().difference(start)}');
+  print('Finished ${DateTime.now()}');
+  print(ss.spreadsheetUrl);
 }

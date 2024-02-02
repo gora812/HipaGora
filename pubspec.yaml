@@ -38,16 +38,23 @@ dependencies:
   fluttertoast: ^8.2.4
 
   flutter_file_dialog: ^3.0.2 #TODO: delete
-
+  shared_preferences: ^2.2.2
+  decimal: ^2.3.3
+  intl: ^0.19.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  firebase_ui_auth: ^1.12.1
-  firebase_ui_oauth_google: ^1.2.17
+#  firebase_core: ^2.24.2
+#  firebase_auth: ^4.16.0
+#  firebase_ui_auth: ^1.12.1
+#  firebase_ui_oauth_google: ^1.2.17
+
   google_sign_in: ^6.2.1
+
+  googleapis: ^11.0.0
+  googleapis_auth: ^1.4.1
+#  gsheets: ^0.5.0
 
 dev_dependencies:
   flutter_test:
