@@ -1,13 +1,25 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:googleapis/sheets/v4.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sms_to_sheet/providers/sms_provider.dart';
 
+import '../models/sms.dart';
 import 'google_auth.dart';
 
 // class SpreadsheetProvider extends ChangeNotifier {
 // }
 
 class SpreadsheetProvider {
+  static final spreadsheet =
+      NotifierProvider<Notifier<Spreadsheet?>, Spreadsheet?>(
+          () => _spreadsheetNotifier);
+
+  static final spreadsheetLastId = Provider<int?>((ref) {
+    final ss = ref.watch(spreadsheet);
+    return ss != null ? SpreadsheetProvider.lastId(ss) : null;
+  });
+
+  static final SpreadsheetNotifier _spreadsheetNotifier = SpreadsheetNotifier();
+
   bool _readPreferences = false;
   String? _id;
   late final SheetsApi _api;
@@ -29,6 +41,7 @@ class SpreadsheetProvider {
     print(ss.toJson());
 
     _spreadsheet = ss;
+    _spreadsheetNotifier.state = _spreadsheet;
     return ss;
   }
 
@@ -72,32 +85,32 @@ class SpreadsheetProvider {
       ],
     );
     ss = await _api.spreadsheets.create(ss);
-    var req = BatchUpdateSpreadsheetRequest(
-      includeSpreadsheetInResponse: true,
-      responseIncludeGridData: true,
-      requests: [
-        Request(
-          addProtectedRange: AddProtectedRangeRequest(
-            protectedRange: ProtectedRange(
-                description: "Please do not change the raw data.",
-                warningOnly: false,
-                editors: Editors(domainUsersCanEdit: false, users: ['API']),
-                range: GridRange(
-                  sheetId: ss.sheets![0].properties!.sheetId!,
-                  startColumnIndex: 1,
-                  endColumnIndex: SmsModel.titles.length,
-                  startRowIndex: 1,
-                  endRowIndex: 30,
-                ),
-                unprotectedRanges: [
-                  // TODO Define columns with comments
-                ]),
-          ),
-        ),
-      ],
-    );
-    ss = (await _api.spreadsheets.batchUpdate(req, ss.spreadsheetId!))
-        .updatedSpreadsheet!;
+    // var req = BatchUpdateSpreadsheetRequest(
+    //   includeSpreadsheetInResponse: true,
+    //   responseIncludeGridData: true,
+    //   requests: [
+    //     Request(
+    //       addProtectedRange: AddProtectedRangeRequest(
+    //         protectedRange: ProtectedRange(
+    //             description: "Please do not change the raw data.",
+    //             warningOnly: false,
+    //             editors: Editors(domainUsersCanEdit: false, users: ['API']),
+    //             range: GridRange(
+    //               sheetId: ss.sheets![0].properties!.sheetId!,
+    //               startColumnIndex: 1,
+    //               endColumnIndex: SmsModel.titles.length,
+    //               startRowIndex: 1,
+    //               endRowIndex: 30,
+    //             ),
+    //             unprotectedRanges: [
+    //               // TODO Define columns with comments
+    //             ]),
+    //       ),
+    //     ),
+    //   ],
+    // );
+    // ss = (await _api.spreadsheets.batchUpdate(req, ss.spreadsheetId!))
+    //     .updatedSpreadsheet!;
     _setId(ss);
     return ss;
   }
@@ -150,6 +163,7 @@ class SpreadsheetProvider {
         ),
         _id!);
     _spreadsheet = response.updatedSpreadsheet!;
+    _spreadsheetNotifier.state = _spreadsheet;
   }
 
   Future<void> addRows(Iterable<SmsModel> list) async {
@@ -172,6 +186,7 @@ class SpreadsheetProvider {
         ),
         _id!);
     _spreadsheet = response.updatedSpreadsheet!;
+    _spreadsheetNotifier.state = _spreadsheet;
   }
 
   static RowData buildRow(List cells,
@@ -230,17 +245,23 @@ class SpreadsheetProvider {
             .toList(growable: false));
   }
 
-  static int? lastId(Spreadsheet ss) {
+  static int lastId(Spreadsheet ss) {
     // SmsModel.titles
     // var id = ss.sheets![0].data![0].rowData![0].values![0].formattedValue;
     final idColumn = SmsModel.titles.indexOf(SmsModel.smsIdTitle);
-    return ss.sheets![0].data![0].rowData!
-        .skip(3)
-        .takeWhile((row) => row.values![0].formattedValue != null)
-        .last
-        .values?[idColumn]
-        .effectiveValue!
-        .numberValue!
-        .toInt();
+    return ss.sheets?[0].data?[0].rowData
+            ?.skip(3)
+            .takeWhile((row) => row.values![0].formattedValue != null)
+            .lastOrNull
+            ?.values?[idColumn]
+            .effectiveValue
+            ?.numberValue
+            ?.toInt() ??
+        0;
   }
+}
+
+class SpreadsheetNotifier extends Notifier<Spreadsheet?> {
+  @override
+  Spreadsheet? build() => null;
 }
