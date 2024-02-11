@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/sms.dart';
 import '../../providers/sms_provider.dart';
@@ -20,6 +21,9 @@ class OverviewWidget extends ConsumerWidget {
     final balance = ref.watch(SmsProviders.hipotekarnaBalance);
     final wasted = ref.watch(SmsProviders.hipotekarnaWasted);
     final lastId = ref.watch(SpreadsheetProvider.spreadsheetLastId);
+    final sheetUrl = ref.watch(
+        SpreadsheetProvider.spreadsheet.select((ss) => ss?.spreadsheetUrl));
+    final isSheetUpdating = ref.watch(SpreadsheetProvider.updating);
 
     var uploadable = messages.where((msg) => msg.forPublish);
     var countToUpdate = lastId != null
@@ -27,11 +31,11 @@ class OverviewWidget extends ConsumerWidget {
             .where((msg) => msg.forPublish)
             .where((msg) => msg.id > lastId)
             .length
-            .toString()
         : null;
 
     return ListView(
       children: [
+        //// Card : Hipotekarna amount
         Padding(
           padding: _cardPadding,
           child: Card(
@@ -49,6 +53,7 @@ class OverviewWidget extends ConsumerWidget {
             ),
           ),
         ),
+        //// Card : Hipotekarna SMS panel
         Padding(
           padding: _cardPadding,
           child: Card(
@@ -81,7 +86,7 @@ class OverviewWidget extends ConsumerWidget {
                         Container(
                             alignment: Alignment.centerRight,
                             child: countToUpdate != null
-                                ? Text(countToUpdate)
+                                ? Text(countToUpdate.toString())
                                 : Text('⟳',
                                     style: const TextStyle(fontSize: 20))),
                       ]),
@@ -93,12 +98,33 @@ class OverviewWidget extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       ElevatedButton(
-                        onPressed: () async => parseSms(),
+                        onPressed: () async => await launchUrl(
+                            Uri.parse("sms:${SmsModel.hipotekarnaNumber}"),
+                            mode: LaunchMode.externalApplication),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            elevation: 2),
+                        child: const Text('Open SMS'),
+                      ),
+                      // if (countToUpdate != null && countToUpdate > 0)
+                      ElevatedButton(
+                        onPressed: isSheetUpdating ||
+                                countToUpdate == null ||
+                                countToUpdate <= 0
+                            ? null
+                            : () async => parseSms(),
                         style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                             elevation: 2),
-                        child: const Text('Upload'),
+                        child: Stack(
+                            alignment: AlignmentDirectional.center,
+                            children: [
+                              Text('Upload ${countToUpdate ?? 0} sms'),
+                              if (isSheetUpdating)
+                                const CircularProgressIndicator()
+                            ]),
                       ),
                     ],
                   ),
@@ -107,25 +133,65 @@ class OverviewWidget extends ConsumerWidget {
             ),
           ),
         ),
+        //// Card : Sheet panel
+
+        Padding(
+          padding: _cardPadding,
+          child: Card(
+            child: ListTile(
+              title: const Text('Google Sheet'),
+              subtitle: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: isSheetUpdating
+                        ? null
+                        : () async => await launchUrl(Uri.parse(sheetUrl!),
+                            mode: LaunchMode.externalApplication),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 2),
+                    child: Stack(
+                        alignment: AlignmentDirectional.center,
+                        children: [
+                          const Text('Open'),
+                          if (isSheetUpdating) const CircularProgressIndicator()
+                        ]),
+                  ),
+                  Spacer(),
+                  ElevatedButton(
+                    onPressed: isSheetUpdating
+                        ? null
+                        : () async => await ref
+                            .read(SpreadsheetProvider.spreadsheet.notifier)
+                            .getSpreadsheet(),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 2),
+                    child: Stack(
+                        alignment: AlignmentDirectional.center,
+                        children: [
+                          const Text('Refresh'),
+                          if (isSheetUpdating) const CircularProgressIndicator()
+                        ]),
+                  ),
+                ],
+              ),
+              // leading: const Icon(CupertinoIcons.money_euro),
+              // trailing: const Icon(CupertinoIcons.money_euro),
+            ),
+          ),
+        ),
         ...accountsTiles(messages),
-        ListTile(
-          title: const Text('NLB'),
-          subtitle: const Text('total: 0'),
-          leading: const Icon(CupertinoIcons.money_dollar),
-          trailing: const Icon(CupertinoIcons.right_chevron),
-        ),
-        ListTile(
-          title: const Text('Sparkasse'),
-          subtitle: const Text('total: 0'),
-          leading: const Icon(CupertinoIcons.money_dollar),
-          trailing: const Icon(CupertinoIcons.right_chevron),
-        ),
       ],
     );
   }
 
   parseSms() async {
     var provider = SpreadsheetProvider();
+    provider.uploadSms(await SmsReaderService().hipotekarnaAll);
 
     var start = DateTime.now();
     var counter = 0;
@@ -134,7 +200,7 @@ class OverviewWidget extends ConsumerWidget {
     var ss = await provider.getSpreadsheet();
     var lastId = SpreadsheetProvider.lastId(ss);
 
-    var messages = await SmsService().hipotekarnaAll;
+    var messages = await SmsReaderService().hipotekarnaAll;
 
     var models = messages
         .where((m) => (m.id ?? 0) > lastId)
@@ -146,7 +212,7 @@ class OverviewWidget extends ConsumerWidget {
     const pageSize = 500;
     while (models.isNotEmpty) {
       var rows = models.take(pageSize);
-      await provider.addRows(rows);
+      await provider.addSmsRows(rows);
       sleep(const Duration(seconds: 1));
       models = models.skip(pageSize);
       print('Added ${counter += rows.length} rows');

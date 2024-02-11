@@ -41,6 +41,7 @@ dependencies:
   permission_handler: ^11.2.0
   flutter_sms_inbox: ^1.0.3
 #  fluttertoast: ^8.2.4
+  url_launcher: ^6.2.4
 
 #  flutter_file_dialog: ^3.0.2 #TODO: delete
   shared_preferences: ^2.2.2

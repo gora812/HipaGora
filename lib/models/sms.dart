@@ -99,6 +99,8 @@ class SmsModel {
   late bool forPublish;
   late final RegExpMatch _match;
 
+  static const hipotekarnaNumber = 'Hipotekarna';
+
   // endregion
 
   factory SmsModel(SmsMessage message) {

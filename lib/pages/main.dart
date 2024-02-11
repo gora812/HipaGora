@@ -1,7 +1,7 @@
-import 'package:firebase_ui_auth/firebase_ui_auth.dart';
+import 'package:firebase_ui_auth/firebase_ui_auth.dart' as firebase_widget;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in/google_sign_in.dart' as google_widget;
 import 'package:sms_to_sheet/pages/widgets/messages.dart';
 import 'package:sms_to_sheet/pages/widgets/overview.dart';
 import 'package:sms_to_sheet/providers/google_auth.dart';
@@ -11,8 +11,7 @@ class MainPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final GoogleSignInAccount? user =
-        ref.watch(GoogleAuthProvider.authentication);
+    final user = ref.watch(GoogleAuthProvider.authentication);
     return Scaffold(
       appBar: AppBar(
         title: const Text('HipoGora SMS tool'),
@@ -20,7 +19,7 @@ class MainPage extends ConsumerWidget {
         centerTitle: false,
         leading: IconButton(
           icon: user != null
-              ? GoogleUserCircleAvatar(identity: user)
+              ? google_widget.GoogleUserCircleAvatar(identity: user)
               : const Icon(
                   Icons.account_circle_outlined,
                   color: Colors.deepOrange,
@@ -30,13 +29,17 @@ class MainPage extends ConsumerWidget {
               ? showDialog(
                   context: context,
                   builder: (context) => Dialog(
-                    child: ProfileScreen(
+                    child: firebase_widget.ProfileScreen(
                       appBar: AppBar(
                         title: const Text('User Profile'),
                       ),
                       providers: [GoogleAuthProvider().googleProvider],
                       actions: [
-                        SignedOutAction((context) {
+                        firebase_widget.SignedOutAction((context) {
+                          Navigator.of(context).pop();
+                        }),
+                        firebase_widget.AccountDeletedAction((context, __) {
+                          //TODO drop spreadsheet link
                           Navigator.of(context).pop();
                         }),
                       ],

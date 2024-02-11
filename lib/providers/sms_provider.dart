@@ -6,11 +6,11 @@ import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:permission_handler/permission_handler.dart' as permission;
 import 'package:sms_to_sheet/models/sms.dart';
 
-const _hipotekarna = 'Hipotekarna';
+const _hipotekarna = SmsModel.hipotekarnaNumber;
 
 abstract interface class SmsProviders {
   static final hipotekarna =
-      NotifierProvider<SmsList, List<SmsModel>>(SmsList.new);
+      NotifierProvider<Notifier<List<SmsModel>>, List<SmsModel>>(_SmsList.new);
 
   static final hipotekarnaBalance = Provider<double?>((ref) => ref
       .watch(hipotekarna)
@@ -32,10 +32,10 @@ abstract interface class SmsProviders {
               (msg.fee ?? 0)));
 }
 
-class SmsList extends Notifier<List<SmsModel>> {
-  final SmsService _smsService = SmsService();
+class _SmsList extends Notifier<List<SmsModel>> {
+  final SmsReaderService _smsService = SmsReaderService();
 
-  SmsList() {
+  _SmsList() {
     _init();
   }
 
@@ -87,17 +87,17 @@ class SmsList extends Notifier<List<SmsModel>> {
   List<SmsModel> build() => [];
 }
 
-class SmsService {
-  static SmsService? instance;
+class SmsReaderService {
+  static SmsReaderService? instance;
 
   final SmsQuery query = SmsQuery();
 
-  factory SmsService() {
-    instance ??= SmsService._private();
+  factory SmsReaderService() {
+    instance ??= SmsReaderService._private();
     return instance!;
   }
 
-  SmsService._private() {
+  SmsReaderService._private() {
     var granted = false;
     permission.Permission.sms
         .request()

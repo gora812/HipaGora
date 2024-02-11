@@ -1,0 +1,61 @@
+@startuml
+'https://plantuml.com/class-diagram
+skinparam groupInheritance 2
+skinparam groupInheritance 2
+
+class MyApp
+
+
+
+package " Models  " #7AF2FF {
+    class SmsModel <<(M,#7AF2FF) model>> <<powertype>>
+    enum SmsType
+
+    SmsModel --> SmsType
+}
+
+
+package " Services  " #FFD2D2 {
+
+    class GoogleAuthProvider << (P,#00FF00) provider>>
+    class SmsProvider << (P,#00FF00) provider>> <<facade>>
+    class SpreadsheetProvider << (P,#00FF00) provider>>
+
+    class _SmsReaderService <<(S,#FF0000) service>>
+    struct firebase_options <<(C,#dddddd)config>>
+
+    GoogleAuthProvider --> firebase_options
+
+    SpreadsheetProvider ..> GoogleAuthProvider
+    SpreadsheetProvider ..> SmsModel #blue;line.dotted;text:blue
+
+    SmsProvider --> _SmsReaderService
+    _SmsReaderService ..> SmsModel #blue;line.dotted;text:blue
+}
+
+package " UI  " #FFFFAD {
+    class MainPage <<(U,#FFF200) UI>>
+    class OverviewWidget <<(U,#FFF200) UI>>
+    class MessagesWidget <<(U,#FFF200) UI>>
+
+
+    MyApp *-- MainPage
+    MainPage *-- OverviewWidget
+    MainPage *-- MessagesWidget
+    MainPage ..> GoogleAuthProvider
+
+    MessagesWidget ..> SmsProvider
+    MessagesWidget ..> SmsModel #blue;line.dotted;text:blue
+
+    OverviewWidget ..> SmsProvider
+    OverviewWidget ..> SpreadsheetProvider
+    OverviewWidget ..> SmsModel #blue;line.dotted;text:blue
+}
+
+
+
+
+
+
+
+@enduml

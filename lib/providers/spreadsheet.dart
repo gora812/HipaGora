@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:googleapis/sheets/v4.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,47 +9,56 @@ import '../models/sms.dart';
 import 'google_auth.dart';
 
 class SpreadsheetProvider extends Notifier<Spreadsheet?> {
+  //region providers
   static final spreadsheet =
-      NotifierProvider<Notifier<Spreadsheet?>, Spreadsheet?>(
-          () => _instance);
+      NotifierProvider<SpreadsheetProvider, Spreadsheet?>(() => _instance);
 
   static final spreadsheetLastId = Provider<int?>((ref) {
     final ss = ref.watch(spreadsheet);
     return ss != null ? SpreadsheetProvider.lastId(ss) : null;
   });
 
+  static final updating = Provider((ref) => ref.watch(spreadsheet) == null);
+
+  //endregion providers
+
+  //region members
   static final SpreadsheetProvider _instance = SpreadsheetProvider._internal();
 
   bool _readPreferences = false;
   String? _id;
   late final SheetsApi _api;
-  late Spreadsheet _spreadsheet;
 
+  // late Spreadsheet _spreadsheet;
+
+  //endregion members
+
+  //region Singleton
   factory SpreadsheetProvider() => _instance;
 
-  SpreadsheetProvider._internal() {}
+  SpreadsheetProvider._internal();
 
+  //endregion Singleton
+
+  /// Get or Create the spreadsheet from the Google Sheets API
   Future<Spreadsheet> getSpreadsheet() async {
-    final ss = (await isSheetAvailable())
+    state = null;
+    final sheet = (await isSheetAvailable())
         ? await _api.spreadsheets
             .get(_id!, includeGridData: true)
             .onError<ApiRequestError>((error, __) async {
-            if (error is DetailedApiRequestError && error.status == 404)
-              return await createSpreadsheet();
+            if (error is DetailedApiRequestError && error.status == 404) {
+              return await _createSpreadsheet();
+            }
             throw error;
           })
-        : await createSpreadsheet();
+        : await _createSpreadsheet();
 
-    print(ss.spreadsheetUrl);
-    print(ss.properties?.toJson());
-    print(ss.toJson());
-
-    _spreadsheet = ss;
-    state = _spreadsheet;
-    return ss;
+    state = sheet;
+    return sheet;
   }
 
-  Future<Spreadsheet> createSpreadsheet() async {
+  Future<Spreadsheet> _createSpreadsheet() async {
     Spreadsheet ss = Spreadsheet(
       properties: SpreadsheetProperties(
         title: "HipaGora.RawData ${DateTime.now()}",
@@ -63,9 +73,9 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
               startRow: 1,
               rowData: [
                 //Row with titles
-                buildRow(SmsModel.titles),
+                _buildSmsRow(SmsModel.titles),
                 //Row with filters
-                buildRow(SmsModel.titles, stringifier: (s) => "\t⧨"),
+                _buildSmsRow(SmsModel.titles, stringifier: (s) => "\t⧨"),
               ],
               columnMetadata: SmsModel.titles
                   .map((t) => DimensionProperties(
@@ -147,7 +157,9 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
     _api = await GoogleAuthProvider().sheetsApi;
   }
 
-  Future<void> addRow(SmsModel sms) async {
+  Future<void> addSmsRow(SmsModel sms) async {
+    final sheet = state!;
+    state = null;
     var response = await _api.spreadsheets.batchUpdate(
         BatchUpdateSpreadsheetRequest(
           includeSpreadsheetInResponse: true,
@@ -155,23 +167,24 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
           requests: [
             Request(
               appendCells: AppendCellsRequest(
-                sheetId: _spreadsheet.sheets![0].properties!.sheetId!,
+                sheetId: sheet.sheets![0].properties!.sheetId!,
                 fields: "*",
                 rows: [
-                  buildRow(sms.getRow()),
+                  _buildSmsRow(sms.getRow()),
                 ],
               ),
             ),
           ],
         ),
         _id!);
-    _spreadsheet = response.updatedSpreadsheet!;
-    state = _spreadsheet;
+    state = response.updatedSpreadsheet!;
   }
 
-  Future<void> addRows(Iterable<SmsModel> list) async {
+  Future<void> addSmsRows(Iterable<SmsModel> list) async {
+    final sheet = state!;
+    state = null;
     final rows =
-        list.map((sms) => buildRow(sms.getRow())).toList(growable: false);
+        list.map((sms) => _buildSmsRow(sms.getRow())).toList(growable: false);
 
     var response = await _api.spreadsheets.batchUpdate(
         BatchUpdateSpreadsheetRequest(
@@ -180,7 +193,7 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
           requests: [
             Request(
               appendCells: AppendCellsRequest(
-                sheetId: _spreadsheet.sheets![0].properties!.sheetId!,
+                sheetId: sheet.sheets![0].properties!.sheetId!,
                 fields: "*",
                 rows: rows,
               ),
@@ -188,11 +201,11 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
           ],
         ),
         _id!);
-    _spreadsheet = response.updatedSpreadsheet!;
-    state = _spreadsheet;
+
+    state = response.updatedSpreadsheet!;
   }
 
-  static RowData buildRow(List cells,
+  static RowData _buildSmsRow(List cells,
       {String? Function(String?)? stringifier}) {
     stringCell(String? cell) => CellData(
         userEnteredValue: ExtendedValue(stringValue: cell),
@@ -243,9 +256,7 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
             };
 
     return RowData(
-        values: cells
-            .map((cell) => cellData(cell))
-            .toList(growable: false));
+        values: cells.map((cell) => cellData(cell)).toList(growable: false));
   }
 
   static int lastId(Spreadsheet ss) {
@@ -261,9 +272,13 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
         0;
   }
 
+  /// After anyone subscribes to the provider,
+  /// the method starts a request to retrieve the spreadsheet.
   @override
   Spreadsheet? build() {
     unawaited(getSpreadsheet());
     return null;
   }
+
+  void uploadSms(List<SmsMessage> list) {}
 }
