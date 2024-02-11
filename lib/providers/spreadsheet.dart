@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:googleapis/sheets/v4.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -260,5 +262,8 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
   }
 
   @override
-  Spreadsheet? build() => null;
+  Spreadsheet? build() {
+    unawaited(getSpreadsheet());
+    return null;
+  }
 }

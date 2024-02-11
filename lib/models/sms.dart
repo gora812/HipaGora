@@ -2,9 +2,6 @@ import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:intl/intl.dart';
 
 final DateFormat _hbFormat = DateFormat("dd.MM.yyyy hh:mm:ss");
-// final DateFormat _format = DateFormat("yy-MM-dd hh:mm");
-// final DateFormat _format = DateFormat("yyyy-MM-ddThh:mm:ss");
-// final NumberFormat _numberFormat = NumberFormat.decimalPattern('en-US');
 
 enum SmsType {
   wasteOfFunds(name: 'WasteOfFunds', waste: true),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,12 +21,14 @@ class OverviewWidget extends ConsumerWidget {
     final wasted = ref.watch(SmsProviders.hipotekarnaWasted);
     final lastId = ref.watch(SpreadsheetProvider.spreadsheetLastId);
 
+    var uploadable = messages.where((msg) => msg.forPublish);
     var countToUpdate = lastId != null
         ? messages
             .where((msg) => msg.forPublish)
             .where((msg) => msg.id > lastId)
-            .length.toString()
-        : '⟳';
+            .length
+            .toString()
+        : null;
 
     return ListView(
       children: [
@@ -51,31 +54,60 @@ class OverviewWidget extends ConsumerWidget {
           child: Card(
             child: ListTile(
               title: const Text('Hipotekarna SMS'),
-              subtitle: Column(children: [
-                Row(
-                  children: [
-                    Text('total: ${messages.length}'),
-                    const Spacer(flex: 1),
-                    Text('to update: ${countToUpdate}'),
-                  ],
-                ),
-                Row(
-                  children: [
-                    const Spacer(flex: 1),
-                    ElevatedButton(
-                      onPressed: () async => parseSms(),
-                      child: const Text('Update'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.orangeAccent,
-                          elevation: 2),
-                    ),
-                  ],
-                ),
-              ]),
+              subtitle: Row(
+                children: [
+                  Table(
+                    // border: TableBorder.all(),
+                    columnWidths: const {
+                      0: IntrinsicColumnWidth(),
+                      1: FixedColumnWidth(45),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      TableRow(children: [
+                        const Text('Total:'),
+                        Container(
+                            alignment: Alignment.centerRight,
+                            child: Text(messages.length.toString())),
+                      ]),
+                      TableRow(children: [
+                        const Text('Uploadable:'),
+                        Container(
+                            alignment: Alignment.centerRight,
+                            child: Text(uploadable.length.toString())),
+                      ]),
+                      TableRow(children: [
+                        const Text('For upload:'),
+                        Container(
+                            alignment: Alignment.centerRight,
+                            child: countToUpdate != null
+                                ? Text(countToUpdate)
+                                : Text('⟳',
+                                    style: const TextStyle(fontSize: 20))),
+                      ]),
+                    ],
+                  ),
+                  const Spacer(),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async => parseSms(),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            elevation: 2),
+                        child: const Text('Upload'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        ...accountsTiles(messages),
         ListTile(
           title: const Text('NLB'),
           subtitle: const Text('total: 0'),
@@ -122,5 +154,28 @@ class OverviewWidget extends ConsumerWidget {
     print('Finished ${DateTime.now().difference(start)}');
     print('Finished ${DateTime.now()}');
     print(ss.spreadsheetUrl);
+  }
+
+  List<Widget> accountsTiles(List<SmsModel> messages) {
+    return messages
+        .where((msg) => msg.balance != null)
+        .where((msg) => msg.dateTime != null)
+        .groupListsBy((msg) => msg.account)
+        .values
+        .map(
+      (messages) {
+        SmsModel last = maxBy(messages, (msg) => msg.dateTime!)!;
+        return Padding(
+            padding: _cardPadding,
+            child: Card(
+              child: ListTile(
+                title: Text(messages.first.account!),
+                subtitle: Text(last.balance!.toString()),
+                leading: const Icon(CupertinoIcons.money_euro),
+                trailing: const Icon(CupertinoIcons.right_chevron),
+              ),
+            ));
+      },
+    ).toList(growable: false);
   }
 }
