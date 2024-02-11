@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
@@ -280,5 +281,31 @@ class SpreadsheetProvider extends Notifier<Spreadsheet?> {
     return null;
   }
 
-  void uploadSms(List<SmsMessage> list) {}
+  Future<Spreadsheet?> uploadSms(List<SmsMessage> messages) async {
+    var counter = 0;
+    state = null;
+
+    var sheet = await getSpreadsheet();
+
+    var lastId = SpreadsheetProvider.lastId(sheet);
+
+    var models = messages
+        .where((m) => (m.id ?? 0) > lastId)
+        .map((m) => SmsModel(m))
+        .where((m) => m.forPublish)
+        .toList(growable: false)
+        .reversed;
+
+    const pageSize = 500;
+
+    while (models.isNotEmpty) {
+      var rows = models.take(pageSize);
+      await addSmsRows(rows);
+      sleep(const Duration(seconds: 1));
+      models = models.skip(pageSize);
+      print('Added ${counter += rows.length} rows');
+    }
+
+    return state;
+  }
 }

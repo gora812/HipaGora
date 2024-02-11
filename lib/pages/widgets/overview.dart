@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -191,35 +189,14 @@ class OverviewWidget extends ConsumerWidget {
 
   parseSms() async {
     var provider = SpreadsheetProvider();
-    provider.uploadSms(await SmsReaderService().hipotekarnaAll);
 
     var start = DateTime.now();
-    var counter = 0;
     print('Started $start ...');
 
-    var ss = await provider.getSpreadsheet();
-    var lastId = SpreadsheetProvider.lastId(ss);
+    await provider.uploadSms(await SmsReaderService().hipotekarnaAll);
 
-    var messages = await SmsReaderService().hipotekarnaAll;
-
-    var models = messages
-        .where((m) => (m.id ?? 0) > lastId)
-        .map((m) => SmsModel(m))
-        .where((m) => m.forPublish)
-        .toList(growable: false)
-        .reversed;
-
-    const pageSize = 500;
-    while (models.isNotEmpty) {
-      var rows = models.take(pageSize);
-      await provider.addSmsRows(rows);
-      sleep(const Duration(seconds: 1));
-      models = models.skip(pageSize);
-      print('Added ${counter += rows.length} rows');
-    }
     print('Finished ${DateTime.now().difference(start)}');
     print('Finished ${DateTime.now()}');
-    print(ss.spreadsheetUrl);
   }
 
   List<Widget> accountsTiles(List<SmsModel> messages) {

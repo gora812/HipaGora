@@ -1,7 +1,7 @@
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:intl/intl.dart';
 
-final DateFormat _hbFormat = DateFormat("dd.MM.yyyy hh:mm:ss");
+final DateFormat _hbFormat = DateFormat("dd.MM.yyyy HH:mm:ss");
 
 enum SmsType {
   wasteOfFunds(name: 'WasteOfFunds', waste: true),
@@ -136,10 +136,13 @@ class SmsModel {
   }
 
   static final _cpParser =
-      RegExp(r"^(\S+(?: \S+)+)\s{2,}(\S*)\s{2,}(\w{2,3})$");
+      RegExp(r"^(\S+(?: \S+)*)\s{2,}(\S+(?: \S+)*)\s{2,}(\w{2,4})$");
+  static final _cpParser2 =
+      RegExp(r"^(\S+(?: \S+)*)\s+(\S+)\s+(\w{2,4})$");
 
   counterpartyParser(String value) {
     var cpMatch = _cpParser.firstMatch(value);
+    cpMatch ??= _cpParser2.firstMatch(value);
     if (cpMatch != null) {
       counterparty = cpMatch.group(1);
       counterpartyLocation = cpMatch.group(2);
