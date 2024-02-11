@@ -5,25 +5,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sms.dart';
 import 'google_auth.dart';
 
-// class SpreadsheetProvider extends ChangeNotifier {
-// }
-
-class SpreadsheetProvider {
+class SpreadsheetProvider extends Notifier<Spreadsheet?> {
   static final spreadsheet =
       NotifierProvider<Notifier<Spreadsheet?>, Spreadsheet?>(
-          () => _spreadsheetNotifier);
+          () => _instance);
 
   static final spreadsheetLastId = Provider<int?>((ref) {
     final ss = ref.watch(spreadsheet);
     return ss != null ? SpreadsheetProvider.lastId(ss) : null;
   });
 
-  static final SpreadsheetNotifier _spreadsheetNotifier = SpreadsheetNotifier();
+  static final SpreadsheetProvider _instance = SpreadsheetProvider._internal();
 
   bool _readPreferences = false;
   String? _id;
   late final SheetsApi _api;
   late Spreadsheet _spreadsheet;
+
+  factory SpreadsheetProvider() => _instance;
+
+  SpreadsheetProvider._internal() {}
 
   Future<Spreadsheet> getSpreadsheet() async {
     final ss = (await isSheetAvailable())
@@ -41,7 +42,7 @@ class SpreadsheetProvider {
     print(ss.toJson());
 
     _spreadsheet = ss;
-    _spreadsheetNotifier.state = _spreadsheet;
+    state = _spreadsheet;
     return ss;
   }
 
@@ -163,7 +164,7 @@ class SpreadsheetProvider {
         ),
         _id!);
     _spreadsheet = response.updatedSpreadsheet!;
-    _spreadsheetNotifier.state = _spreadsheet;
+    state = _spreadsheet;
   }
 
   Future<void> addRows(Iterable<SmsModel> list) async {
@@ -186,7 +187,7 @@ class SpreadsheetProvider {
         ),
         _id!);
     _spreadsheet = response.updatedSpreadsheet!;
-    _spreadsheetNotifier.state = _spreadsheet;
+    state = _spreadsheet;
   }
 
   static RowData buildRow(List cells,
@@ -201,6 +202,7 @@ class SpreadsheetProvider {
     var cellData = stringifier != null
         ? (cell) => stringCell(stringifier(cell?.toString()))
         : (cell) => switch (cell.runtimeType) {
+              // ignore: prefer_void_to_null
               Null => stringCell(null),
               String => stringCell(cell),
               DateTime => CellData(
@@ -241,13 +243,10 @@ class SpreadsheetProvider {
     return RowData(
         values: cells
             .map((cell) => cellData(cell))
-            // .map((cell) => CellData(userEnteredValue: extendedValue(cell)))
             .toList(growable: false));
   }
 
   static int lastId(Spreadsheet ss) {
-    // SmsModel.titles
-    // var id = ss.sheets![0].data![0].rowData![0].values![0].formattedValue;
     final idColumn = SmsModel.titles.indexOf(SmsModel.smsIdTitle);
     return ss.sheets?[0].data?[0].rowData
             ?.skip(3)
@@ -259,9 +258,7 @@ class SpreadsheetProvider {
             ?.toInt() ??
         0;
   }
-}
 
-class SpreadsheetNotifier extends Notifier<Spreadsheet?> {
   @override
   Spreadsheet? build() => null;
 }
