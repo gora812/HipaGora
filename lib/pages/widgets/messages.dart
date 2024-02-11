@@ -65,24 +65,41 @@ class MessagesWidget extends ConsumerWidget {
       child: Card(
         key: ValueKey(message.id),
         child: ListTile(
-          title: Text(message.raw),
-          subtitle: Column(
+          title: Row(
             children: [
-              Row(children: [
-                Text('[id:${message.id}] ${message.type.name}'),
-                Spacer(flex: 5),
-                Text((message.dateTime == null)
-                    ? 'unknown time'
-                    : _format.format(message.dateTime!)),
-              ]),
-              Row(
-                children: [
-                  Text('amount: ${message.amount} ${message.amountCurrency} '),
-                  Text('account: ${message.account} '),
-                  Text('status: ${message.status} '),
-                ],
+              SelectableText(
+                '[${message.id}] ${message.type.name}',
               ),
+              const Spacer(),
+              Text('${message.amount} ${message.amountCurrency}'),
             ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(message.raw,
+                    style: const TextStyle(fontStyle: FontStyle.italic)),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  children: [
+                    Text('account: ${message.account}\t'),
+                    Text('status: ${message.status}\t'),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Spacer(),
+                    Text(
+                        (message.dateTime == null)
+                            ? 'unknown time'
+                            : _format.format(message.dateTime!),
+                        style: const TextStyle(fontSize: 10)),
+                  ],
+                )
+              ],
+            ),
           ),
         ),
       ),

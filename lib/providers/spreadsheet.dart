@@ -141,7 +141,7 @@ class SpreadsheetProvider {
   }
 
   Future<void> _initApi() async {
-    _api = await GoogleAuthProvider.sheetsApi;
+    _api = await GoogleAuthProvider().sheetsApi;
   }
 
   Future<void> addRow(SmsModel sms) async {

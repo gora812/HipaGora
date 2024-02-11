@@ -57,6 +57,32 @@ class SmsList extends Notifier<List<SmsModel>> {
             error: 'Permission was not granted'));
   }
 
+  // _smsPermissionWidget() {
+  //   var granted = false;
+  //   permission.Permission.sms
+  //       .request()
+  //       .then((status) => granted = status.isGranted)
+  //       .whenComplete(() {
+  //     if (!granted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         const SnackBar(
+  //             duration: Duration(minutes: 15),
+  //             content: Row(
+  //                 mainAxisAlignment: MainAxisAlignment.center,
+  //                 children: <Widget>[
+  //                   Padding(
+  //                       padding: EdgeInsets.all(8),
+  //                       child: Icon(
+  //                         Icons.sms_failed,
+  //                         color: Colors.red,
+  //                       )),
+  //                   Text('SMS permission denied!'),
+  //                 ])),
+  //       );
+  //     }
+  //   });
+  // }
+
   @override
   List<SmsModel> build() => [];
 }
