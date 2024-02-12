@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart' as google_widget;
 import 'package:sms_to_sheet/pages/widgets/messages.dart';
 import 'package:sms_to_sheet/pages/widgets/overview.dart';
 import 'package:sms_to_sheet/providers/google_auth.dart';
+import 'package:sms_to_sheet/providers/spreadsheet.dart';
 
 class MainPage extends ConsumerWidget {
   const MainPage({Key? key}) : super(key: key);
@@ -36,10 +37,10 @@ class MainPage extends ConsumerWidget {
                       providers: [GoogleAuthProvider().googleProvider],
                       actions: [
                         firebase_widget.SignedOutAction((context) {
+                          SpreadsheetProvider().clean();
                           Navigator.of(context).pop();
                         }),
                         firebase_widget.AccountDeletedAction((context, __) {
-                          //TODO drop spreadsheet link
                           Navigator.of(context).pop();
                         }),
                       ],

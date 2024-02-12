@@ -18,10 +18,14 @@ class OverviewWidget extends ConsumerWidget {
     final messages = ref.watch(SmsProviders.hipotekarna);
     final balance = ref.watch(SmsProviders.hipotekarnaBalance);
     final wasted = ref.watch(SmsProviders.hipotekarnaWasted);
+
     final lastId = ref.watch(SpreadsheetProvider.spreadsheetLastId);
+    final channels = ref.watch(SpreadsheetProvider.dictionaryChannels);
     final sheetUrl = ref.watch(
         SpreadsheetProvider.spreadsheet.select((ss) => ss?.spreadsheetUrl));
     final isSheetUpdating = ref.watch(SpreadsheetProvider.updating);
+
+    final isSheetAvailable = (sheetUrl ?? '').isNotEmpty && !isSheetUpdating;
 
     var uploadable = messages.where((msg) => msg.forPublish);
     var countToUpdate = lastId != null
@@ -42,8 +46,8 @@ class OverviewWidget extends ConsumerWidget {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('amount: ${balance}€'),
-                  Text('wasted: ${wasted}€'),
+                  Text('amount: $balance€'),
+                  Text('wasted: $wasted€'),
                 ],
               ),
               // leading: const Icon(CupertinoIcons.money_euro),
@@ -85,8 +89,8 @@ class OverviewWidget extends ConsumerWidget {
                             alignment: Alignment.centerRight,
                             child: countToUpdate != null
                                 ? Text(countToUpdate.toString())
-                                : Text('⟳',
-                                    style: const TextStyle(fontSize: 20))),
+                                : const Text('⟳',
+                                    style: TextStyle(fontSize: 20))),
                       ]),
                     ],
                   ),
@@ -107,11 +111,10 @@ class OverviewWidget extends ConsumerWidget {
                       ),
                       // if (countToUpdate != null && countToUpdate > 0)
                       ElevatedButton(
-                        onPressed: isSheetUpdating ||
-                                countToUpdate == null ||
-                                countToUpdate <= 0
-                            ? null
-                            : () async => parseSms(),
+                        onPressed:
+                            !isSheetAvailable || (countToUpdate ?? 0) <= 0
+                                ? null
+                                : () async => parseSms(),
                         style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
@@ -142,7 +145,7 @@ class OverviewWidget extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   ElevatedButton(
-                    onPressed: isSheetUpdating
+                    onPressed: (!isSheetAvailable)
                         ? null
                         : () async => await launchUrl(Uri.parse(sheetUrl!),
                             mode: LaunchMode.externalApplication),
@@ -157,9 +160,9 @@ class OverviewWidget extends ConsumerWidget {
                           if (isSheetUpdating) const CircularProgressIndicator()
                         ]),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   ElevatedButton(
-                    onPressed: isSheetUpdating
+                    onPressed: (!isSheetAvailable)
                         ? null
                         : () async => await ref
                             .read(SpreadsheetProvider.spreadsheet.notifier)
@@ -182,7 +185,7 @@ class OverviewWidget extends ConsumerWidget {
             ),
           ),
         ),
-        ...accountsTiles(messages),
+        ...accountsTiles(messages, channels),
       ],
     );
   }
@@ -199,26 +202,29 @@ class OverviewWidget extends ConsumerWidget {
     print('Finished ${DateTime.now()}');
   }
 
-  List<Widget> accountsTiles(List<SmsModel> messages) {
-    return messages
-        .where((msg) => msg.balance != null)
-        .where((msg) => msg.dateTime != null)
-        .groupListsBy((msg) => msg.account)
-        .values
-        .map(
-      (messages) {
-        SmsModel last = maxBy(messages, (msg) => msg.dateTime!)!;
-        return Padding(
-            padding: _cardPadding,
-            child: Card(
-              child: ListTile(
-                title: Text(messages.first.account!),
-                subtitle: Text(last.balance!.toString()),
-                leading: const Icon(CupertinoIcons.money_euro),
-                trailing: const Icon(CupertinoIcons.right_chevron),
-              ),
-            ));
-      },
-    ).toList(growable: false);
+  List<Widget> accountsTiles(
+      List<SmsModel> messages, Map<String, String> channels) {
+    return channels.isEmpty
+        ? []
+        : messages
+            .where((msg) => msg.balance != null)
+            .where((msg) => msg.dateTime != null)
+            .groupListsBy((msg) => channels[msg.account])
+            .values
+            .map(
+            (messages) {
+              SmsModel last = maxBy(messages, (msg) => msg.dateTime!)!;
+              return Padding(
+                  padding: _cardPadding,
+                  child: Card(
+                    child: ListTile(
+                      title: Text(messages.first.account!),
+                      subtitle: Text(last.balance!.toString()),
+                      leading: const Icon(CupertinoIcons.money_euro),
+                      trailing: const Icon(CupertinoIcons.right_chevron),
+                    ),
+                  ));
+            },
+          ).toList(growable: false);
   }
 }

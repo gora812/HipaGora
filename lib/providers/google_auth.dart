@@ -86,7 +86,7 @@ class GoogleAuthProvider extends Notifier<GoogleSignInAccount?> {
     String accessToken = authentication.accessToken!;
 
     // Use the access token with Google APIs
-    _expiry = DateTime.now().add(Duration(hours: 1));
+    _expiry = DateTime.now().add(const Duration(hours: 1));
     var client = authenticatedClient(
         Client(),
         AccessCredentials(
