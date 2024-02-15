@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyC3_BvtieEaLGd3IkkDj-gx6-1U8viCPFk',
-    appId: '1:218894820427:android:d974aac9448ee9968359ce',
+    appId: '1:218894820427:android:e32a5c3c4cde67ce8359ce',
     messagingSenderId: '218894820427',
     projectId: 'hipagora',
     storageBucket: 'hipagora.appspot.com',

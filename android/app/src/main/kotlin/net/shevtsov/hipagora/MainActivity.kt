@@ -1,4 +1,4 @@
-package net.shevtsov.dev.smstosheet.sms_to_sheet
+package net.shevtsov.hipagora
 
 import io.flutter.embedding.android.FlutterActivity
 

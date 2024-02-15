@@ -7,12 +7,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:218894820427:android:d974aac9448ee9968359ce",
+        "mobilesdk_app_id": "1:218894820427:android:5a2e3c600c4cdabd8359ce",
         "android_client_info": {
-          "package_name": "net.shevtsov.dev.smstosheet.sms_to_sheet"
+          "package_name": "net.shevtsov.hipagora"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "218894820427-a9irienbq4slg0dop7e2kfrr354co3dk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "net.shevtsov.hipagora",
+            "certificate_hash": "39bd9b4f1b8fcf80ee88e026d46c4735e23277be"
+          }
+        },
         {
           "client_id": "218894820427-ufhqm517985c3aa4rm51iuaf5c1qiqvi.apps.googleusercontent.com",
           "client_type": 3
@@ -29,6 +37,13 @@
             {
               "client_id": "218894820427-ufhqm517985c3aa4rm51iuaf5c1qiqvi.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "218894820427-hripj7b64h8sdfnsace3q84jrfkt23ma.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "net.shevtsov.hipogora"
+              }
             }
           ]
         }
